@@ -1,4 +1,3 @@
-import os
 from typing import List, Tuple
 from PyPDF2 import PdfReader
 from langchain_text_splitters import RecursiveCharacterTextSplitter   
@@ -89,10 +88,8 @@ class DocumentProcessor:
         )
         return chunks
     
-    def process_document(self, file_path: str, file_type: str, 
-                        doc_id: int) -> Tuple[List[LangChainDocument], int]:
-        """
-        Complete document processing pipeline
+    def process_document(self, file_path: str, file_type: str, doc_id: int) -> Tuple[List[LangChainDocument], int]:
+        """Complete document processing pipeline
         
         Args:
             file_path: Path to document

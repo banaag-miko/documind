@@ -41,6 +41,7 @@ class Config:
     CHROMA_API_KEY = os.environ.get('CHROMA_API_KEY')
     CHROMA_TENANT = os.environ.get('CHROMA_TENANT')
     CHROMA_DATABASE = os.environ.get('CHROMA_DATABASE')
+    CHROMA_HOST = os.environ.get('CHROMA_HOST', 'api.trychroma.com')
     
     @staticmethod
     def init_app(app):

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Literal
 
 
@@ -6,7 +6,7 @@ class DocumentUploadRequest(BaseModel):
     """Validates document upload requests"""
     file_type: str = Field(..., description="Type of file being uploaded")
     
-    @validator('file_type')
+    @field_validator('file_type')
     def validate_file_type(cls, v):
         allowed = ['pdf', 'txt', 'md']
         if v.lower() not in allowed:
@@ -23,7 +23,7 @@ class QueryRequest(BaseModel):
         description="LLM provider to use"
     )
     
-    @validator('question')
+    @field_validator('question')
     def validate_question(cls, v):
         if not v.strip():
             raise ValueError('Question cannot be empty')
