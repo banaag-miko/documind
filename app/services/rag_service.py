@@ -3,22 +3,21 @@ import time
 from typing import Dict, List
 
 from langchain_core.prompts import PromptTemplate
-from langchain_core.documents.base import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_openai import ChatOpenAI
+from langsmith import traceable
 
 from app.config import Config
 from models.schemas import SourceChunk
-from app.services.vector_store import VectorStoreService
+from models.document import collection  # ChromaDB collection
 
 
 class RAGService:
     """Retrieval-Augmented Generation service with multiple LLM providers"""
     
     def __init__(self):
-        """Initialize RAG service with vector store and LLM providers"""
-        self.vector_store = VectorStoreService()
+        """Initialize RAG service with LLM providers"""
         
         # Initialize different LLM providers
         self.llms = {}
@@ -26,51 +25,92 @@ class RAGService:
         # OpenAI
         if Config.OPENAI_API_KEY:
             self.llms['openai'] = ChatOpenAI(
-                model="gpt-4-turbo-preview",
-                temperature=0.7,
+                model="gpt-4o-2024-08-06",
+                temperature=0.3,
+                max_completion_tokens=512,
                 openai_api_key=Config.OPENAI_API_KEY
             )
         
         # Custom prompt template for structured responses
         self.prompt_template = """You are an AI assistant analyzing a document. Use the following pieces of context to answer the question at the end.
+        If you don't know the answer based on the context, just say that you don't know. Don't try to make up an answer.
+        Provide a confidence level (high, medium, or low) based on how well the context supports your answer.
+        
+        Also suggest 2-3 relevant follow-up questions the user might want to ask.
 
-If you don't know the answer based on the context, just say that you don't know. Don't try to make up an answer.
+        Context:
+        {context}
 
-Provide a confidence level (high, medium, or low) based on how well the context supports your answer.
+        Question: {question}
 
-Also suggest 2-3 relevant follow-up questions the user might want to ask.
+        Please structure your response as follows:
+        1. Answer: [Your detailed answer]
+        2. Confidence: [high/medium/low]
+        3. Follow-up Questions:
+           - [Question 1]
+           - [Question 2]
+           - [Question 3]
 
-Context:
-{context}
-
-Question: {question}
-
-Please structure your response as follows:
-1. Answer: [Your detailed answer]
-2. Confidence: [high/medium/low]
-3. Follow-up Questions:
-   - [Question 1]
-   - [Question 2]
-   - [Question 3]
-
-Answer:"""
+        Answer:"""
 
         self.prompt = PromptTemplate(
             template=self.prompt_template,
             input_variables=["context", "question"]
         )
     
-    def format_docs(self, docs: List[Document]) -> str:
-        """Format retrieved documents into a single context string"""
-        return "\n\n".join(doc.page_content for doc in docs)
     
+    @traceable(name="retrieve_documents")
+    def retrieve_from_chromadb(self, question: str, doc_id: int = None, k: int = 4) -> List[Dict]:
+        """
+        Retrieve relevant documents from ChromaDB
+        
+        Args:
+            question: Query text
+            doc_id: Optional document ID to filter by
+            k: Number of results to return
+            
+        Returns:
+            List of retrieved documents with metadata
+        """
+        query_params = {
+            "query_texts": [question],
+            "n_results": k
+        }
+        
+        if doc_id is not None:
+            query_params["where"] = {"document_id": doc_id}
+        
+        query_results = collection.query(**query_params)
+        
+        # Format results
+        retrieved_docs = []
+        if query_results['documents'][0]:
+            for doc_text, metadata, distance in zip(
+                query_results['documents'][0],
+                query_results['metadatas'][0],
+                query_results['distances'][0]
+            ):
+                retrieved_docs.append({
+                    'content': doc_text,
+                    'metadata': metadata,
+                    'distance': distance,
+                    'similarity_score': 1 - distance
+                })
+        
+        return retrieved_docs
+    
+    def format_docs(self, docs: List[Dict]) -> str:
+        """Format retrieved documents into a single context string"""
+        return "\n\n".join(doc['content'] for doc in docs)
+    
+    @traceable(name="query_document")
     def query_document(self, collection_name: str, question: str, 
                       llm_provider: str = 'openai') -> Dict:
         """
-        Query a document using RAG with modern LCEL
+        Query a document using RAG with ChromaDB and LCEL
         
         Args:
-            collection_name: Name of the vector store collection
+            collection_name: Name of the vector store collection (e.g., "doc_1" or "document_chunks")
             question: User's question
             llm_provider: LLM provider to use (openai, anthropic, google)
             
@@ -83,19 +123,26 @@ Answer:"""
         if llm_provider not in self.llms:
             raise ValueError(f"LLM provider '{llm_provider}' not configured. Check your API keys.")
         
-        # Step 2: Load vectorstore
-        vectorstore = self.vector_store.load_vectorstore(collection_name)
-        if vectorstore is None:
-            raise ValueError(f"Vector store '{collection_name}' not found")
+        # Step 2: Extract document_id from collection_name
+        doc_id = None
+        if collection_name.startswith('doc_'):
+            try:
+                doc_id = int(collection_name.split('_')[1])
+            except (IndexError, ValueError):
+                pass
         
-        # Step 3: Get LLM and create retriever
+        # Step 3: Create retriever function that works with LCEL
+        def retriever(query: str) -> List[Dict]:
+            """Retriever function for LCEL chain"""
+            return self.retrieve_from_chromadb(query, doc_id=doc_id, k=4)
+        
+        # Step 4: Get LLM
         llm = self.llms[llm_provider]
-        retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
         
-        # Step 4: Create RAG chain using modern LCEL
+        # Step 5: Create RAG chain using LCEL
         rag_chain = (
             {
-                "context": retriever | self.format_docs,
+                "context": lambda x: self.format_docs(retriever(x)),
                 "question": RunnablePassthrough()
             }
             | self.prompt
@@ -103,18 +150,29 @@ Answer:"""
             | StrOutputParser()
         )
         
-        # Step 5: Get response and source documents
+        # Step 6: Execute chain and get source documents
         try:
-            # Get the answer
+            # Get the answer using the chain
             answer_text = rag_chain.invoke(question)
             
             # Get source documents separately for metadata
-            source_documents = retriever.invoke(question)
+            source_documents = retriever(question)
             
         except Exception as e:
             raise Exception(f"Error querying LLM: {str(e)}")
         
-        # Step 6: Parse response
+        # Step 7: Check if we got results
+        if not source_documents:
+            return {
+                'answer': "I couldn't find any relevant information in the document to answer your question.",
+                'confidence': 'low',
+                'follow_up_questions': [],
+                'sources': [],
+                'llm_provider': llm_provider,
+                'response_time': time.time() - start_time
+            }
+        
+        # Step 8: Parse response
         parsed_response = self._parse_llm_response(answer_text, source_documents)
         
         # Calculate response time
@@ -129,7 +187,7 @@ Answer:"""
             'response_time': response_time
         }
     
-    def _parse_llm_response(self, answer_text: str, source_docs: List[Document]) -> Dict:
+    def _parse_llm_response(self, answer_text: str, source_docs: List[Dict]) -> Dict:
         """
         Parse the LLM response into structured format
         
@@ -182,14 +240,14 @@ Answer:"""
         sources = []
         for doc in source_docs:
             # Truncate content for display
-            content = doc.page_content
+            content = doc['content']
             if len(content) > 300:
                 content = content[:300] + "..."
             
             sources.append(SourceChunk(
                 content=content,
-                page=self._extract_page_number(doc.page_content),
-                score=doc.metadata.get('similarity_score', 0.0)
+                page=self._extract_page_number(doc['content']),
+                score=doc['similarity_score']
             ))
         
         return {

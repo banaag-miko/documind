@@ -10,7 +10,10 @@ from app.services.document_processor import DocumentProcessor
 from app.services.vector_store import VectorStoreService
 from app.services.rag_service import RAGService
 from app.config import Config
+from app.services.chroma_service import ChromaService
 
+
+chroma_service = ChromaService()
 # Create Blueprint
 api_bp = Blueprint('api', __name__)
 
@@ -77,14 +80,20 @@ def upload_document():
                 file_path, file_ext, document.id
             )
             
+            chunk_count = chroma_service.add_documents(
+                doc_id=document.id,
+                chunks=chunks,
+                filename=file.filename
+            )
+            
             # Create vector store collection
-            collection_name = f"doc_{document.id}"
-            vector_service.add_documents(collection_name, chunks)
+            # collection_name = f"doc_{document.id}"
+            # vector_service.add_documents(collection_name, chunks)
             
             # Update document record
             document.processed = True
             document.chunk_count = chunk_count
-            document.vector_store_id = collection_name
+            document.vector_store_id = "document_chunks"
             db.session.commit()
             
             return jsonify({

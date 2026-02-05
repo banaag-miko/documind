@@ -26,6 +26,7 @@ def create_app(config_class=Config):
     
     # Initialize database
     db.init_app(app)
+    init_chromadb(app)
     
     # Register blueprints
     from app.routes.api import api_bp
@@ -33,7 +34,6 @@ def create_app(config_class=Config):
     
     # Create database tables
     with app.app_context():
-        init_chromadb(app)
         db.create_all()
         print("✓ Database tables created")
     
