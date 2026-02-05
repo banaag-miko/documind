@@ -29,10 +29,13 @@ class Config:
     ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
     GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
     
+    
     # LangChain Tracing
     os.environ['LANGCHAIN_TRACING_V2'] = 'true'
     os.environ['LANGCHAIN_ENDPOINT'] = 'https://api.smith.langchain.com'
-    os.environ['LANGCHAIN_API_KEY'] = os.getenv('LANGCHAIN_API_KEY') 
+    os.environ['LANGSMITH_PROJECT'] = "documind-v2"
+    LANGCHAIN_API_KEY = os.environ.get("LANGCHAIN_API_KEY")
+    LANGSMITH_API_KEY = os.environ.get("LANGSMITH_API_KEY")
     
      # ChromaDB Cloud settings
     CHROMA_API_KEY = os.environ.get('CHROMA_API_KEY')
