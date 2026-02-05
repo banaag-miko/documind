@@ -32,7 +32,7 @@ class Config:
     # LangChain Tracing
     os.environ['LANGCHAIN_TRACING_V2'] = 'true'
     os.environ['LANGCHAIN_ENDPOINT'] = 'https://api.smith.langchain.com'
-    os.environ['LANGCHAIN_API_KEY'] = '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'
+    os.environ['LANGCHAIN_API_KEY'] = os.getenv('LANGCHAIN_API_KEY') 
     
      # ChromaDB Cloud settings
     CHROMA_API_KEY = os.environ.get('CHROMA_API_KEY')
