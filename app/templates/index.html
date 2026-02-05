@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocuMind - AI Document Intelligence</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            text-align: center;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #f0f0f0;
+            border-radius: 10px;
+        }
+        
+        .section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+        
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8f9ff;
+        }
+        
+        .upload-area:hover {
+            background: #eef1ff;
+            border-color: #764ba2;
+        }
+        
+        .upload-area p {
+            margin: 5px 0;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: transform 0.2s;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        select, input, textarea {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .document-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .document-card {
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .document-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .document-card.selected {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        
+        .document-card strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        
+        .document-card small {
+            display: block;
+            color: #666;
+            margin: 2px 0;
+        }
+        
+        .answer-box {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .answer-box h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .answer-box p {
+            line-height: 1.6;
+            color: #333;
+        }
+        
+        .follow-up {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+        }
+        
+        .follow-up ul {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+        
+        .follow-up li {
+            margin: 5px 0;
+            color: #555;
+        }
+        
+        .sources {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #fee;
+            border-left: 4px solid #f44;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .success {
+            background: #efe;
+            border-left: 4px solid #4f4;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        
+        .confidence-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .confidence-high {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .confidence-medium {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .confidence-low {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 DocuMind</h1>
+        <p class="subtitle">AI-Powered Document Intelligence Platform</p>
+        
+        <!-- Upload Section -->
+        <div class="section">
+            <h2>📤 Upload Document</h2>
+            <div class="upload-area" id="uploadArea">
+                <p><strong>Click to upload or drag & drop</strong></p>
+                <p style="font-size: 12px; color: #999;">Supported: PDF, TXT, MD (Max 16MB)</p>
+            </div>
+            <input type="file" id="fileInput" style="display: none;" accept=".pdf,.txt,.md">
+            <button id="uploadBtn" onclick="uploadDocument()">Upload & Process</button>
+            
+            <div class="loading" id="uploadLoading">
+                <div class="spinner"></div>
+                <p>Processing document... This may take a moment.</p>
+            </div>
+            
+            <div id="uploadMessage"></div>
+        </div>
+        
+        <!-- Document List -->
+        <div class="section">
+            <h2>📚 Your Documents</h2>
+            <div class="document-list" id="documentList">
+                <div class="empty-state">No documents uploaded yet</div>
+            </div>
+        </div>
+        
+        <!-- Query Section -->
+        <div class="section">
+            <h2>❓ Ask Questions</h2>
+            <div id="queryForm">
+                <label for="llmProvider"><strong>Select AI Model:</strong></label>
+                <select id="llmProvider">
+                    <option value="openai">OpenAI (GPT-4)</option>
+                    <option value="anthropic">Anthropic (Claude)</option>
+                    <option value="google">Google (Gemini)</option>
+                </select>
+                
+                <label for="question"><strong>Your Question:</strong></label>
+                <textarea id="question" placeholder="Ask a question about your document..." rows="3"></textarea>
+                
+                <button onclick="askQuestion()">Ask AI</button>
+            </div>
+            
+            <div class="loading" id="queryLoading">
+                <div class="spinner"></div>
+                <p>Thinking...</p>
+            </div>
+            
+            <div id="answerContainer"></div>
+        </div>
+    </div>
+    
+    <script>
+        let selectedDocId = null;
+        
+        // Load documents on page load
+        window.onload = function() {
+            loadDocuments();
+            checkHealth();
+        };
+        
+        // File upload area click handler
+        document.getElementById('uploadArea').onclick = function() {
+            document.getElementById('fileInput').click();
+        };
+        
+        // File input change handler
+        document.getElementById('fileInput').onchange = function(e) {
+            if (e.target.files.length > 0) {
+                document.getElementById('uploadArea').innerHTML = `
+                    <p><strong>Selected: ${e.target.files[0].name}</strong></p>
+                    <p style="font-size: 12px; color: #999;">Click "Upload & Process" to continue</p>
+                `;
+            }
+        };
+        
+        async function checkHealth() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                console.log('Configured providers:', data.configured_providers);
+            } catch (error) {
+                console.error('Health check failed:', error);
+            }
+        }
+        
+        async function uploadDocument() {
+            const fileInput = document.getElementById('fileInput');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const uploadLoading = document.getElementById('uploadLoading');
+            const uploadMessage = document.getElementById('uploadMessage');
+            
+            if (!fileInput.files[0]) {
+                showMessage('Please select a file', 'error', uploadMessage);
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            uploadBtn.disabled = true;
+            uploadLoading.classList.add('active');
+            uploadMessage.innerHTML = '';
+            
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showMessage('Document uploaded and processed successfully!', 'success', uploadMessage);
+                    loadDocuments();
+                    fileInput.value = '';
+                    document.getElementById('uploadArea').innerHTML = `
+                        <p><strong>Click to upload or drag & drop</strong></p>
+                        <p style="font-size: 12px; color: #999;">Supported: PDF, TXT, MD (Max 16MB)</p>
+                    `;
+                } else {
+                    showMessage('Error: ' + data.error, 'error', uploadMessage);
+                }
+            } catch (error) {
+                showMessage('Upload failed: ' + error.message, 'error', uploadMessage);
+            } finally {
+                uploadBtn.disabled = false;
+                uploadLoading.classList.remove('active');
+            }
+        }
+        
+        async function loadDocuments() {
+            try {
+                const response = await fetch('/api/documents');
+                const data = await response.json();
+                
+                const listEl = document.getElementById('documentList');
+                
+                if (data.documents.length === 0) {
+                    listEl.innerHTML = '<div class="empty-state">No documents uploaded yet</div>';
+                    return;
+                }
+                
+                listEl.innerHTML = '';
+                
+                data.documents.forEach(doc => {
+                    const card = document.createElement('div');
+                    card.className = 'document-card';
+                    if (doc.id === selectedDocId) {
+                        card.classList.add('selected');
+                    }
+                    card.onclick = () => selectDocument(doc.id);
+                    
+                    const statusIcon = doc.processed ? '✅' : '⏳';
+                    
+                    card.innerHTML = `
+                        <strong>${statusIcon} ${doc.filename}</strong>
+                        <small>Size: ${(doc.file_size / 1024).toFixed(1)} KB</small>
+                        <small>Chunks: ${doc.chunk_count}</small>
+                        <small>Uploaded: ${new Date(doc.upload_date).toLocaleDateString()}</small>
+                    `;
+                    
+                    listEl.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Failed to load documents:', error);
+            }
+        }
+        
+        function selectDocument(docId) {
+            selectedDocId = docId;
+            loadDocuments();
+        }
+        
+        async function askQuestion() {
+            if (!selectedDocId) {
+                alert('Please select a document first');
+                return;
+            }
+            
+            const question = document.getElementById('question').value.trim();
+            if (!question) {
+                alert('Please enter a question');
+                return;
+            }
+            
+            const llmProvider = document.getElementById('llmProvider').value;
+            const queryLoading = document.getElementById('queryLoading');
+            const answerContainer = document.getElementById('answerContainer');
+            
+            queryLoading.classList.add('active');
+            answerContainer.innerHTML = '';
+            
+            try {
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        document_id: selectedDocId,
+                        question: question,
+                        llm_provider: llmProvider
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayAnswer(data);
+                } else {
+                    answerContainer.innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                answerContainer.innerHTML = `<div class="error">Query failed: ${error.message}</div>`;
+            } finally {
+                queryLoading.classList.remove('active');
+            }
+        }
+        
+        function displayAnswer(data) {
+            const container = document.getElementById('answerContainer');
+            
+            const confidenceClass = `confidence-${data.confidence}`;
+            
+            let html = `
+                <div class="answer-box">
+                    <h3>
+                        Answer 
+                        <span class="confidence-badge ${confidenceClass}">
+                            ${data.confidence.toUpperCase()} CONFIDENCE
+                        </span>
+                    </h3>
+                    <p>${data.answer}</p>
+            `;
+            
+            if (data.follow_up_questions && data.follow_up_questions.length > 0) {
+                html += `
+                    <div class="follow-up">
+                        <strong>💡 Follow-up questions:</strong>
+                        <ul>
+                            ${data.follow_up_questions.map(q => `<li>${q}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+            
+            html += `
+                    <div class="sources">
+                        <strong>📄 Sources:</strong> ${data.sources.length} relevant chunks found
+                        <br>
+                        <strong>⚡ Response time:</strong> ${data.response_time}s using ${data.llm_provider}
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+        
+        function showMessage(message, type, element) {
+            element.innerHTML = `<div class="${type}">${message}</div>`;
+            setTimeout(() => {
+                element.innerHTML = '';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

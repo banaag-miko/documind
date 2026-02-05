@@ -1,0 +1,13 @@
+from openai import OpenAI
+
+client = OpenAI(
+  api_key="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"
+)
+
+response = client.responses.create(
+  model="gpt-5-nano",
+  input="write a haiku about ai",
+  store=True,
+)
+
+print(response.output_text);
